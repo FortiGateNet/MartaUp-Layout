@@ -1356,4 +1356,224 @@
 
         this._element.classList.add(CLASS_NAME_POINTER_EVENT);
       } else {
-        EventHandler.on(this._element, EVENT_TOUCHSTART,
+        EventHandler.on(this._element, EVENT_TOUCHSTART, event => start(event));
+        EventHandler.on(this._element, EVENT_TOUCHMOVE, event => move(event));
+        EventHandler.on(this._element, EVENT_TOUCHEND, event => end(event));
+      }
+    }
+
+    _keydown(event) {
+      if (/input|textarea/i.test(event.target.tagName)) {
+        return;
+      }
+
+      const direction = KEY_TO_DIRECTION[event.key];
+
+      if (direction) {
+        event.preventDefault();
+
+        this._slide(direction);
+      }
+    }
+
+    _getItemIndex(element) {
+      this._items = element && element.parentNode ? SelectorEngine.find(SELECTOR_ITEM, element.parentNode) : [];
+      return this._items.indexOf(element);
+    }
+
+    _getItemByOrder(order, activeElement) {
+      const isNext = order === ORDER_NEXT;
+      return getNextActiveElement(this._items, activeElement, isNext, this._config.wrap);
+    }
+
+    _triggerSlideEvent(relatedTarget, eventDirectionName) {
+      const targetIndex = this._getItemIndex(relatedTarget);
+
+      const fromIndex = this._getItemIndex(SelectorEngine.findOne(SELECTOR_ACTIVE_ITEM, this._element));
+
+      return EventHandler.trigger(this._element, EVENT_SLIDE, {
+        relatedTarget,
+        direction: eventDirectionName,
+        from: fromIndex,
+        to: targetIndex
+      });
+    }
+
+    _setActiveIndicatorElement(element) {
+      if (this._indicatorsElement) {
+        const activeIndicator = SelectorEngine.findOne(SELECTOR_ACTIVE$1, this._indicatorsElement);
+        activeIndicator.classList.remove(CLASS_NAME_ACTIVE$2);
+        activeIndicator.removeAttribute('aria-current');
+        const indicators = SelectorEngine.find(SELECTOR_INDICATOR, this._indicatorsElement);
+
+        for (let i = 0; i < indicators.length; i++) {
+          if (Number.parseInt(indicators[i].getAttribute('data-bs-slide-to'), 10) === this._getItemIndex(element)) {
+            indicators[i].classList.add(CLASS_NAME_ACTIVE$2);
+            indicators[i].setAttribute('aria-current', 'true');
+            break;
+          }
+        }
+      }
+    }
+
+    _updateInterval() {
+      const element = this._activeElement || SelectorEngine.findOne(SELECTOR_ACTIVE_ITEM, this._element);
+
+      if (!element) {
+        return;
+      }
+
+      const elementInterval = Number.parseInt(element.getAttribute('data-bs-interval'), 10);
+
+      if (elementInterval) {
+        this._config.defaultInterval = this._config.defaultInterval || this._config.interval;
+        this._config.interval = elementInterval;
+      } else {
+        this._config.interval = this._config.defaultInterval || this._config.interval;
+      }
+    }
+
+    _slide(directionOrOrder, element) {
+      const order = this._directionToOrder(directionOrOrder);
+
+      const activeElement = SelectorEngine.findOne(SELECTOR_ACTIVE_ITEM, this._element);
+
+      const activeElementIndex = this._getItemIndex(activeElement);
+
+      const nextElement = element || this._getItemByOrder(order, activeElement);
+
+      const nextElementIndex = this._getItemIndex(nextElement);
+
+      const isCycling = Boolean(this._interval);
+      const isNext = order === ORDER_NEXT;
+      const directionalClassName = isNext ? CLASS_NAME_START : CLASS_NAME_END;
+      const orderClassName = isNext ? CLASS_NAME_NEXT : CLASS_NAME_PREV;
+
+      const eventDirectionName = this._orderToDirection(order);
+
+      if (nextElement && nextElement.classList.contains(CLASS_NAME_ACTIVE$2)) {
+        this._isSliding = false;
+        return;
+      }
+
+      if (this._isSliding) {
+        return;
+      }
+
+      const slideEvent = this._triggerSlideEvent(nextElement, eventDirectionName);
+
+      if (slideEvent.defaultPrevented) {
+        return;
+      }
+
+      if (!activeElement || !nextElement) {
+        // Some weirdness is happening, so we bail
+        return;
+      }
+
+      this._isSliding = true;
+
+      if (isCycling) {
+        this.pause();
+      }
+
+      this._setActiveIndicatorElement(nextElement);
+
+      this._activeElement = nextElement;
+
+      const triggerSlidEvent = () => {
+        EventHandler.trigger(this._element, EVENT_SLID, {
+          relatedTarget: nextElement,
+          direction: eventDirectionName,
+          from: activeElementIndex,
+          to: nextElementIndex
+        });
+      };
+
+      if (this._element.classList.contains(CLASS_NAME_SLIDE)) {
+        nextElement.classList.add(orderClassName);
+        reflow(nextElement);
+        activeElement.classList.add(directionalClassName);
+        nextElement.classList.add(directionalClassName);
+
+        const completeCallBack = () => {
+          nextElement.classList.remove(directionalClassName, orderClassName);
+          nextElement.classList.add(CLASS_NAME_ACTIVE$2);
+          activeElement.classList.remove(CLASS_NAME_ACTIVE$2, orderClassName, directionalClassName);
+          this._isSliding = false;
+          setTimeout(triggerSlidEvent, 0);
+        };
+
+        this._queueCallback(completeCallBack, activeElement, true);
+      } else {
+        activeElement.classList.remove(CLASS_NAME_ACTIVE$2);
+        nextElement.classList.add(CLASS_NAME_ACTIVE$2);
+        this._isSliding = false;
+        triggerSlidEvent();
+      }
+
+      if (isCycling) {
+        this.cycle();
+      }
+    }
+
+    _directionToOrder(direction) {
+      if (![DIRECTION_RIGHT, DIRECTION_LEFT].includes(direction)) {
+        return direction;
+      }
+
+      if (isRTL()) {
+        return direction === DIRECTION_LEFT ? ORDER_PREV : ORDER_NEXT;
+      }
+
+      return direction === DIRECTION_LEFT ? ORDER_NEXT : ORDER_PREV;
+    }
+
+    _orderToDirection(order) {
+      if (![ORDER_NEXT, ORDER_PREV].includes(order)) {
+        return order;
+      }
+
+      if (isRTL()) {
+        return order === ORDER_PREV ? DIRECTION_LEFT : DIRECTION_RIGHT;
+      }
+
+      return order === ORDER_PREV ? DIRECTION_RIGHT : DIRECTION_LEFT;
+    } // Static
+
+
+    static carouselInterface(element, config) {
+      const data = Carousel.getOrCreateInstance(element, config);
+      let {
+        _config
+      } = data;
+
+      if (typeof config === 'object') {
+        _config = { ..._config,
+          ...config
+        };
+      }
+
+      const action = typeof config === 'string' ? config : _config.slide;
+
+      if (typeof config === 'number') {
+        data.to(config);
+      } else if (typeof action === 'string') {
+        if (typeof data[action] === 'undefined') {
+          throw new TypeError(`No method named "${action}"`);
+        }
+
+        data[action]();
+      } else if (_config.interval && _config.ride) {
+        data.pause();
+        data.cycle();
+      }
+    }
+
+    static jQueryInterface(config) {
+      return this.each(function () {
+        Carousel.carouselInterface(this, config);
+      });
+    }
+
+    static 
