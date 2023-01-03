@@ -4262,4 +4262,218 @@
     FOCUSIN: `focusin${EVENT_KEY$3}`,
     FOCUSOUT: `focusout${EVENT_KEY$3}`,
     MOUSEENTER: `mouseenter${EVENT_KEY$3}`,
-    MOUSELEAVE: `mo
+    MOUSELEAVE: `mouseleave${EVENT_KEY$3}`
+  };
+  const SELECTOR_TITLE = '.popover-header';
+  const SELECTOR_CONTENT = '.popover-body';
+  /**
+   * ------------------------------------------------------------------------
+   * Class Definition
+   * ------------------------------------------------------------------------
+   */
+
+  class Popover extends Tooltip {
+    // Getters
+    static get Default() {
+      return Default$2;
+    }
+
+    static get NAME() {
+      return NAME$3;
+    }
+
+    static get Event() {
+      return Event$1;
+    }
+
+    static get DefaultType() {
+      return DefaultType$2;
+    } // Overrides
+
+
+    isWithContent() {
+      return this.getTitle() || this._getContent();
+    }
+
+    setContent(tip) {
+      this._sanitizeAndSetContent(tip, this.getTitle(), SELECTOR_TITLE);
+
+      this._sanitizeAndSetContent(tip, this._getContent(), SELECTOR_CONTENT);
+    } // Private
+
+
+    _getContent() {
+      return this._resolvePossibleFunction(this._config.content);
+    }
+
+    _getBasicClassPrefix() {
+      return CLASS_PREFIX;
+    } // Static
+
+
+    static jQueryInterface(config) {
+      return this.each(function () {
+        const data = Popover.getOrCreateInstance(this, config);
+
+        if (typeof config === 'string') {
+          if (typeof data[config] === 'undefined') {
+            throw new TypeError(`No method named "${config}"`);
+          }
+
+          data[config]();
+        }
+      });
+    }
+
+  }
+  /**
+   * ------------------------------------------------------------------------
+   * jQuery
+   * ------------------------------------------------------------------------
+   * add .Popover to jQuery only if jQuery is present
+   */
+
+
+  defineJQueryPlugin(Popover);
+
+  /**
+   * --------------------------------------------------------------------------
+   * Bootstrap (v5.1.0): scrollspy.js
+   * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
+   * --------------------------------------------------------------------------
+   */
+  /**
+   * ------------------------------------------------------------------------
+   * Constants
+   * ------------------------------------------------------------------------
+   */
+
+  const NAME$2 = 'scrollspy';
+  const DATA_KEY$2 = 'bs.scrollspy';
+  const EVENT_KEY$2 = `.${DATA_KEY$2}`;
+  const DATA_API_KEY$1 = '.data-api';
+  const Default$1 = {
+    offset: 10,
+    method: 'auto',
+    target: ''
+  };
+  const DefaultType$1 = {
+    offset: 'number',
+    method: 'string',
+    target: '(string|element)'
+  };
+  const EVENT_ACTIVATE = `activate${EVENT_KEY$2}`;
+  const EVENT_SCROLL = `scroll${EVENT_KEY$2}`;
+  const EVENT_LOAD_DATA_API = `load${EVENT_KEY$2}${DATA_API_KEY$1}`;
+  const CLASS_NAME_DROPDOWN_ITEM = 'dropdown-item';
+  const CLASS_NAME_ACTIVE$1 = 'active';
+  const SELECTOR_DATA_SPY = '[data-bs-spy="scroll"]';
+  const SELECTOR_NAV_LIST_GROUP$1 = '.nav, .list-group';
+  const SELECTOR_NAV_LINKS = '.nav-link';
+  const SELECTOR_NAV_ITEMS = '.nav-item';
+  const SELECTOR_LIST_ITEMS = '.list-group-item';
+  const SELECTOR_LINK_ITEMS = `${SELECTOR_NAV_LINKS}, ${SELECTOR_LIST_ITEMS}, .${CLASS_NAME_DROPDOWN_ITEM}`;
+  const SELECTOR_DROPDOWN$1 = '.dropdown';
+  const SELECTOR_DROPDOWN_TOGGLE$1 = '.dropdown-toggle';
+  const METHOD_OFFSET = 'offset';
+  const METHOD_POSITION = 'position';
+  /**
+   * ------------------------------------------------------------------------
+   * Class Definition
+   * ------------------------------------------------------------------------
+   */
+
+  class ScrollSpy extends BaseComponent {
+    constructor(element, config) {
+      super(element);
+      this._scrollElement = this._element.tagName === 'BODY' ? window : this._element;
+      this._config = this._getConfig(config);
+      this._offsets = [];
+      this._targets = [];
+      this._activeTarget = null;
+      this._scrollHeight = 0;
+      EventHandler.on(this._scrollElement, EVENT_SCROLL, () => this._process());
+      this.refresh();
+
+      this._process();
+    } // Getters
+
+
+    static get Default() {
+      return Default$1;
+    }
+
+    static get NAME() {
+      return NAME$2;
+    } // Public
+
+
+    refresh() {
+      const autoMethod = this._scrollElement === this._scrollElement.window ? METHOD_OFFSET : METHOD_POSITION;
+      const offsetMethod = this._config.method === 'auto' ? autoMethod : this._config.method;
+      const offsetBase = offsetMethod === METHOD_POSITION ? this._getScrollTop() : 0;
+      this._offsets = [];
+      this._targets = [];
+      this._scrollHeight = this._getScrollHeight();
+      const targets = SelectorEngine.find(SELECTOR_LINK_ITEMS, this._config.target);
+      targets.map(element => {
+        const targetSelector = getSelectorFromElement(element);
+        const target = targetSelector ? SelectorEngine.findOne(targetSelector) : null;
+
+        if (target) {
+          const targetBCR = target.getBoundingClientRect();
+
+          if (targetBCR.width || targetBCR.height) {
+            return [Manipulator[offsetMethod](target).top + offsetBase, targetSelector];
+          }
+        }
+
+        return null;
+      }).filter(item => item).sort((a, b) => a[0] - b[0]).forEach(item => {
+        this._offsets.push(item[0]);
+
+        this._targets.push(item[1]);
+      });
+    }
+
+    dispose() {
+      EventHandler.off(this._scrollElement, EVENT_KEY$2);
+      super.dispose();
+    } // Private
+
+
+    _getConfig(config) {
+      config = { ...Default$1,
+        ...Manipulator.getDataAttributes(this._element),
+        ...(typeof config === 'object' && config ? config : {})
+      };
+      config.target = getElement(config.target) || document.documentElement;
+      typeCheckConfig(NAME$2, config, DefaultType$1);
+      return config;
+    }
+
+    _getScrollTop() {
+      return this._scrollElement === window ? this._scrollElement.pageYOffset : this._scrollElement.scrollTop;
+    }
+
+    _getScrollHeight() {
+      return this._scrollElement.scrollHeight || Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+    }
+
+    _getOffsetHeight() {
+      return this._scrollElement === window ? window.innerHeight : this._scrollElement.getBoundingClientRect().height;
+    }
+
+    _process() {
+      const scrollTop = this._getScrollTop() + this._config.offset;
+
+      const scrollHeight = this._getScrollHeight();
+
+      const maxScroll = this._config.offset + scrollHeight - this._getOffsetHeight();
+
+      if (this._scrollHeight !== scrollHeight) {
+        this.refresh();
+      }
+
+      if (scrollTop >= maxScroll) {
+        const target = this._targets[this.
