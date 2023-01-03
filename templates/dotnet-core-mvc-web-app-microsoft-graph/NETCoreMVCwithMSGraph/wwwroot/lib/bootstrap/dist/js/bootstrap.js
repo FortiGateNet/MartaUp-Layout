@@ -4662,4 +4662,243 @@
     } // Private
 
 
-    _activate(element,
+    _activate(element, container, callback) {
+      const activeElements = container && (container.nodeName === 'UL' || container.nodeName === 'OL') ? SelectorEngine.find(SELECTOR_ACTIVE_UL, container) : SelectorEngine.children(container, SELECTOR_ACTIVE);
+      const active = activeElements[0];
+      const isTransitioning = callback && active && active.classList.contains(CLASS_NAME_FADE$1);
+
+      const complete = () => this._transitionComplete(element, active, callback);
+
+      if (active && isTransitioning) {
+        active.classList.remove(CLASS_NAME_SHOW$1);
+
+        this._queueCallback(complete, element, true);
+      } else {
+        complete();
+      }
+    }
+
+    _transitionComplete(element, active, callback) {
+      if (active) {
+        active.classList.remove(CLASS_NAME_ACTIVE);
+        const dropdownChild = SelectorEngine.findOne(SELECTOR_DROPDOWN_ACTIVE_CHILD, active.parentNode);
+
+        if (dropdownChild) {
+          dropdownChild.classList.remove(CLASS_NAME_ACTIVE);
+        }
+
+        if (active.getAttribute('role') === 'tab') {
+          active.setAttribute('aria-selected', false);
+        }
+      }
+
+      element.classList.add(CLASS_NAME_ACTIVE);
+
+      if (element.getAttribute('role') === 'tab') {
+        element.setAttribute('aria-selected', true);
+      }
+
+      reflow(element);
+
+      if (element.classList.contains(CLASS_NAME_FADE$1)) {
+        element.classList.add(CLASS_NAME_SHOW$1);
+      }
+
+      let parent = element.parentNode;
+
+      if (parent && parent.nodeName === 'LI') {
+        parent = parent.parentNode;
+      }
+
+      if (parent && parent.classList.contains(CLASS_NAME_DROPDOWN_MENU)) {
+        const dropdownElement = element.closest(SELECTOR_DROPDOWN);
+
+        if (dropdownElement) {
+          SelectorEngine.find(SELECTOR_DROPDOWN_TOGGLE, dropdownElement).forEach(dropdown => dropdown.classList.add(CLASS_NAME_ACTIVE));
+        }
+
+        element.setAttribute('aria-expanded', true);
+      }
+
+      if (callback) {
+        callback();
+      }
+    } // Static
+
+
+    static jQueryInterface(config) {
+      return this.each(function () {
+        const data = Tab.getOrCreateInstance(this);
+
+        if (typeof config === 'string') {
+          if (typeof data[config] === 'undefined') {
+            throw new TypeError(`No method named "${config}"`);
+          }
+
+          data[config]();
+        }
+      });
+    }
+
+  }
+  /**
+   * ------------------------------------------------------------------------
+   * Data Api implementation
+   * ------------------------------------------------------------------------
+   */
+
+
+  EventHandler.on(document, EVENT_CLICK_DATA_API, SELECTOR_DATA_TOGGLE, function (event) {
+    if (['A', 'AREA'].includes(this.tagName)) {
+      event.preventDefault();
+    }
+
+    if (isDisabled(this)) {
+      return;
+    }
+
+    const data = Tab.getOrCreateInstance(this);
+    data.show();
+  });
+  /**
+   * ------------------------------------------------------------------------
+   * jQuery
+   * ------------------------------------------------------------------------
+   * add .Tab to jQuery only if jQuery is present
+   */
+
+  defineJQueryPlugin(Tab);
+
+  /**
+   * --------------------------------------------------------------------------
+   * Bootstrap (v5.1.0): toast.js
+   * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
+   * --------------------------------------------------------------------------
+   */
+  /**
+   * ------------------------------------------------------------------------
+   * Constants
+   * ------------------------------------------------------------------------
+   */
+
+  const NAME = 'toast';
+  const DATA_KEY = 'bs.toast';
+  const EVENT_KEY = `.${DATA_KEY}`;
+  const EVENT_MOUSEOVER = `mouseover${EVENT_KEY}`;
+  const EVENT_MOUSEOUT = `mouseout${EVENT_KEY}`;
+  const EVENT_FOCUSIN = `focusin${EVENT_KEY}`;
+  const EVENT_FOCUSOUT = `focusout${EVENT_KEY}`;
+  const EVENT_HIDE = `hide${EVENT_KEY}`;
+  const EVENT_HIDDEN = `hidden${EVENT_KEY}`;
+  const EVENT_SHOW = `show${EVENT_KEY}`;
+  const EVENT_SHOWN = `shown${EVENT_KEY}`;
+  const CLASS_NAME_FADE = 'fade';
+  const CLASS_NAME_HIDE = 'hide'; // @deprecated - kept here only for backwards compatibility
+
+  const CLASS_NAME_SHOW = 'show';
+  const CLASS_NAME_SHOWING = 'showing';
+  const DefaultType = {
+    animation: 'boolean',
+    autohide: 'boolean',
+    delay: 'number'
+  };
+  const Default = {
+    animation: true,
+    autohide: true,
+    delay: 5000
+  };
+  /**
+   * ------------------------------------------------------------------------
+   * Class Definition
+   * ------------------------------------------------------------------------
+   */
+
+  class Toast extends BaseComponent {
+    constructor(element, config) {
+      super(element);
+      this._config = this._getConfig(config);
+      this._timeout = null;
+      this._hasMouseInteraction = false;
+      this._hasKeyboardInteraction = false;
+
+      this._setListeners();
+    } // Getters
+
+
+    static get DefaultType() {
+      return DefaultType;
+    }
+
+    static get Default() {
+      return Default;
+    }
+
+    static get NAME() {
+      return NAME;
+    } // Public
+
+
+    show() {
+      const showEvent = EventHandler.trigger(this._element, EVENT_SHOW);
+
+      if (showEvent.defaultPrevented) {
+        return;
+      }
+
+      this._clearTimeout();
+
+      if (this._config.animation) {
+        this._element.classList.add(CLASS_NAME_FADE);
+      }
+
+      const complete = () => {
+        this._element.classList.remove(CLASS_NAME_SHOWING);
+
+        EventHandler.trigger(this._element, EVENT_SHOWN);
+
+        this._maybeScheduleHide();
+      };
+
+      this._element.classList.remove(CLASS_NAME_HIDE); // @deprecated
+
+
+      reflow(this._element);
+
+      this._element.classList.add(CLASS_NAME_SHOW);
+
+      this._element.classList.add(CLASS_NAME_SHOWING);
+
+      this._queueCallback(complete, this._element, this._config.animation);
+    }
+
+    hide() {
+      if (!this._element.classList.contains(CLASS_NAME_SHOW)) {
+        return;
+      }
+
+      const hideEvent = EventHandler.trigger(this._element, EVENT_HIDE);
+
+      if (hideEvent.defaultPrevented) {
+        return;
+      }
+
+      const complete = () => {
+        this._element.classList.add(CLASS_NAME_HIDE); // @deprecated
+
+
+        this._element.classList.remove(CLASS_NAME_SHOWING);
+
+        this._element.classList.remove(CLASS_NAME_SHOW);
+
+        EventHandler.trigger(this._element, EVENT_HIDDEN);
+      };
+
+      this._element.classList.add(CLASS_NAME_SHOWING);
+
+      this._queueCallback(complete, this._element, this._config.animation);
+    }
+
+    dispose() {
+      this._clearTimeout();
+
+      if (this._el
