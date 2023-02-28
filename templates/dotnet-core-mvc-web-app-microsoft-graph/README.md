@@ -59,4 +59,4 @@ After the login, you'll see your email address mentioned on navigation bar of yo
 
 ## Reference
 
-* [Quickstart: Register an application with the Microsoft identity platform](https://learn.microsoft.com/azure/active-directory/develop/quickstart-register-ap
+* [Quickstart: Register an application with the Microsoft identity platform](https://learn.microsoft.com/azure/active-directory/develop/quickstart-register-app)
